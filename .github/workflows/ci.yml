@@ -1,0 +1,71 @@
+name: Python CI
+
+# Events that start this workflow
+on:
+
+  # Run when code is pushed to main
+  push:
+    branches:
+      - main
+
+  # Run when a pull request targets main
+  pull_request:
+    branches:
+      - main
+
+  # Allow us to start the workflow manually
+  workflow_dispatch:
+
+# Principle of least privilege
+permissions:
+  contents: read
+
+jobs:
+
+  test:
+
+    # GitHub creates an Ubuntu runner for this job
+    runs-on: ubuntu-latest
+
+    strategy:
+
+      # Run the job once for every Python version
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.12"
+          - "3.13"
+
+    steps:
+
+      # Download repository code onto the runner
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # Install the required Python version
+      - name: Configure Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+          # Cache pip dependencies between workflow runs
+          cache: pip
+
+      # Install application/test dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Run automated tests
+      - name: Run tests
+        run: |
+          pytest -v --junitxml=test-results.xml
+
+      # Save test results even when tests fail
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-python-${{ matrix.python-version }}
+          path: test-results.xml
